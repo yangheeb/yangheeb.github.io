@@ -49,7 +49,19 @@
                 </div>
             </section>
 
-
+            <section class="chatbot">
+                <h2>🤖 Ask Me!</h2>
+                <br>
+                <div class="chatbot-wrap">
+                    <div class="chatbot-response" id="chatbot-response">
+                        <p class="chatbot-placeholder">저에 대해 궁금한 것을 물어보세요!</p>
+                    </div>
+                    <div class="chatbot-input-wrap">
+                        <input type="text" id="chatbot-input" class="chatbot-input" placeholder="예) 백민정의 프로젝트 경험은?">
+                        <button id="chatbot-send" class="chatbot-send" onclick="sendQuestion()">전송</button>
+                    </div>
+                </div>
+            </section>
 
             <section class="projects">
                 <h2>💻 Projects</h2>
@@ -124,8 +136,6 @@
                 </div>
             </section>
 
-            
-
         </main>
         <footer>
             <div class="footer-contact">Contact         chungchung3701@gmail.com</div>
@@ -134,5 +144,55 @@
         </footer>
 
     </div>
+<script>
+    async function sendQuestion() {
+        const input = document.getElementById('chatbot-input');
+        const responseBox = document.getElementById('chatbot-response');
+        const sendBtn = document.getElementById('chatbot-send');
+        const query = input.value.trim();
+
+        if (!query) return;
+
+        input.disabled = true;
+        sendBtn.disabled = true;
+        responseBox.innerHTML = '<p class="chatbot-typing">답변을 생성 중입니다...</p>';
+
+        try {
+            const response = await fetch('http://localhost:8080/api/v1/rag/query/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query, maxResults: 4, model: 'gpt-4o-mini' })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            responseBox.innerHTML = '';
+            let fullText = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data:')) {
+                        fullText += line.substring(5);
+                        responseBox.innerText = fullText;
+                    }
+                }
+            }
+        } catch (e) {
+            responseBox.innerHTML = '<p style="color:red;">서버에 연결할 수 없습니다.</p>';
+        } finally {
+            input.disabled = false;
+            sendBtn.disabled = false;
+        }
+    }
+
+    document.getElementById('chatbot-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendQuestion();
+    });
+</script>
 </body>
 </html>
